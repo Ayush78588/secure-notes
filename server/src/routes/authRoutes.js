@@ -1,22 +1,16 @@
 const express = require("express");
-const passport = require("passport");
-const { startOtp, verifyOtp, logout } = require("../controllers/authController");
-const { googleCallback } = require("../controllers/googleController");
+const { startOtp, verifyOtp, logout, loginWithGoogle } = require("../controllers/authController");
 
 const router = express.Router();
 
-// email + otp
+// OTP routes
 router.post("/otp/start", startOtp);
 router.post("/otp/verify", verifyOtp);
 
-//  logout
+// logout
 router.post("/logout", logout);
 
-// google
-router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
-router.get("/google/callback",
-  passport.authenticate("google", { session: false, failureRedirect: "/login" }),
-  googleCallback
-);
+// Google login route (POST)
+router.post("/google", loginWithGoogle);
 
 module.exports = router;

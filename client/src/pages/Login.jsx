@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { sendOtp, loginWithOtp, loginWithGoogle } from "../api";
+import { GoogleLogin } from "@react-oauth/google";
 
 function Login({ setUser }) {
   const [email, setEmail] = useState("");
@@ -23,14 +24,9 @@ function Login({ setUser }) {
   const handleVerifyOtp = async () => {
     try {
       const { data } = await loginWithOtp(email, otp);
-      console.log(data,1111);
-      
       setUser(data.user);
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("token", data.accessToken);
-      console.log(data.accessToken);
-      
-
       navigate("/dashboard");
     } catch (err) {
       console.error("Error verifying OTP:", err);
@@ -38,21 +34,23 @@ function Login({ setUser }) {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleLoginSuccess = async (credentialResponse) => {
     try {
-    
-      const fakeGoogleToken = "demo_google_token";
-      const { data } = await loginWithGoogle(fakeGoogleToken);
+      const token = credentialResponse.credential; // JWT from Google
+      const { data } = await loginWithGoogle(token); // send token to backend
       setUser(data.user);
       localStorage.setItem("user", JSON.stringify(data.user));
-      setLoginMethod("google");
       localStorage.setItem("token", data.accessToken);
-
+      setLoginMethod("google");
       navigate("/dashboard");
     } catch (err) {
-      console.error("Google login error:", err);
+      console.error("Google login failed:", err);
       alert("Google login failed");
     }
+  };
+
+  const handleGoogleLoginError = () => {
+    alert("Google login failed");
   };
 
   return (
@@ -90,8 +88,11 @@ function Login({ setUser }) {
       )}
 
       {loginMethod !== "otp" && (
-        <div>
-          <button onClick={handleGoogleLogin}>Login with Google</button>
+        <div style={{ marginTop: "10px" }}>
+          <GoogleLogin
+            onSuccess={handleGoogleLoginSuccess}
+            onError={handleGoogleLoginError}
+          />
         </div>
       )}
     </div>

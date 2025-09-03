@@ -2,11 +2,12 @@ const bcrypt = require("bcrypt");
 const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const { generateTokens} = require("../utils/token");
+const { generateTokens } = require("../utils/token");
+const { OAuth2Client } = require("google-auth-library");
 
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-
-// simple transporter
+// simple transporter for OTP
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT || 587),
@@ -14,7 +15,7 @@ const transporter = nodemailer.createTransport({
   auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
 });
 
-// start otp
+// start OTP
 async function startOtp(req, res) {
   try {
     const { email } = req.body;
@@ -22,10 +23,7 @@ async function startOtp(req, res) {
       return res.status(400).json({ message: "please enter a valid email" });
     }
 
-    // generate 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // hash and save in db
     const salt = await bcrypt.genSalt(10);
     const codeHash = await bcrypt.hash(code, salt);
 
@@ -34,12 +32,11 @@ async function startOtp(req, res) {
 
     user.otp = {
       codeHash,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
       attempts: 0
     };
     await user.save();
 
-    // send mail
     await transporter.sendMail({
       from: process.env.OTP_EMAIL_FROM || process.env.SMTP_USER,
       to: email,
@@ -47,7 +44,6 @@ async function startOtp(req, res) {
       text: `Your OTP is ${code}. It will expire in 10 minutes.`,
     });
 
-    
     return res.json({ message: "otp sent if email exists" });
   } catch (err) {
     console.error("startOtp error", err);
@@ -55,7 +51,7 @@ async function startOtp(req, res) {
   }
 }
 
-// verify otp 
+// verify OTP
 async function verifyOtp(req, res) {
   try {
     const { email, otp } = req.body;
@@ -68,7 +64,6 @@ async function verifyOtp(req, res) {
       return res.status(400).json({ message: "otp expired" });
     }
 
-    // simple attempt cap
     if (user.otp.attempts >= 5) {
       return res.status(429).json({ message: "too many attempts" });
     }
@@ -80,13 +75,11 @@ async function verifyOtp(req, res) {
       return res.status(400).json({ message: "wrong otp" });
     }
 
-    // success 
     user.otp = undefined;
-    if (!user.name) user.name = email.split("@")[0]; // placeholder name
+    if (!user.name) user.name = email.split("@")[0];
     await user.save();
 
     const { accessToken } = generateTokens(user._id.toString());
-    
 
     return res.json({
       accessToken,
@@ -98,11 +91,39 @@ async function verifyOtp(req, res) {
   }
 }
 
-
-// logout 
+// logout
 function logout(req, res) {
   res.clearCookie("accessToken");
   return res.json({ message: "logged out" });
 }
 
-module.exports = { startOtp, verifyOtp, logout };
+// Google login (client-side token)
+async function loginWithGoogle(req, res) {
+  try {
+    const { token } = req.body;
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+
+    let user = await User.findOne({ email: payload.email });
+    if (!user) {
+      user = await User.create({
+        name: payload.name,
+        email: payload.email,
+        googleId: payload.sub,
+        provider: "google",
+      });
+    }
+
+    const { accessToken } = generateTokens(user._id.toString());
+
+    return res.json({ user, accessToken });
+  } catch (err) {
+    console.error("Google login error:", err);
+    return res.status(400).json({ message: "Google login failed" });
+  }
+}
+
+module.exports = { startOtp, verifyOtp, logout, loginWithGoogle };
