@@ -2,8 +2,6 @@ const jwt = require("jsonwebtoken");
 
 // checks Authorization
 function authRequired(req, res, next) {
-  console.log("middlewarw");
-  console.log(req.headers.authorization);
   
   
   const hdr = req.headers.authorization || "";
@@ -15,7 +13,7 @@ function authRequired(req, res, next) {
   try {
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
     req.userId = decoded.userId;
-    console.log("next");
+  
     
     next();
   } catch (err) {

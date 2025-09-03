@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -16,8 +16,17 @@ function App() {
     <Router>
       <Navbar user={user} setUser={setUser} />
       <Routes>
-        <Route path="/" element={<Login setUser={setUser} />} />
-        <Route path="/dashboard" element={<Dashboard user={user} />} />
+        {/* If logged in, redirect "/" to dashboard */}
+        <Route
+          path="/"
+          element={user ? <Navigate to="/dashboard" /> : <Login setUser={setUser} />}
+        />
+
+        {/* Protect dashboard route */}
+        <Route
+          path="/dashboard"
+          element={user ? <Dashboard user={user} /> : <Navigate to="/" />}
+        />
       </Routes>
     </Router>
   );

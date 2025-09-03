@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { sendOtp, loginWithOtp, loginWithGoogle } from "../api";
 import { GoogleLogin } from "@react-oauth/google";
@@ -7,17 +7,38 @@ function Login({ setUser }) {
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   const [loginMethod, setLoginMethod] = useState(null);
+  const [isSending, setIsSending] = useState(false); // prevent multiple clicks
   const navigate = useNavigate();
 
+  useEffect(() => {
+    let timer;
+    if (countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [countdown]);
+
   const handleSendOtp = async () => {
+    if (!email) return alert("Please enter your email");
+
+    if (isSending) return; 
+
+    setIsSending(true); 
+
     try {
       await sendOtp(email);
       setOtpSent(true);
       setLoginMethod("otp");
+      setCountdown(60); 
     } catch (err) {
       console.error("Error sending OTP:", err);
       alert("Failed to send OTP");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -37,7 +58,7 @@ function Login({ setUser }) {
   const handleGoogleLoginSuccess = async (credentialResponse) => {
     try {
       const token = credentialResponse.credential; // JWT from Google
-      const { data } = await loginWithGoogle(token); // send token to backend
+      const { data } = await loginWithGoogle(token);
       setUser(data.user);
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("token", data.accessToken);
@@ -66,23 +87,45 @@ function Login({ setUser }) {
             onChange={(e) => setEmail(e.target.value)}
             style={{ padding: "10px", width: "60%" }}
           />
-          {!otpSent ? (
-            <button onClick={handleSendOtp} style={{ marginLeft: "10px" }}>
-              Send OTP
-            </button>
-          ) : (
-            <>
-              <input
-                type="text"
-                placeholder="Enter OTP"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                style={{ marginLeft: "10px", padding: "10px" }}
-              />
-              <button onClick={handleVerifyOtp} style={{ marginLeft: "10px" }}>
-                Verify OTP
+
+          {!otpSent && (
+            <div style={{ marginTop: "10px" }}>
+              <button onClick={handleSendOtp} disabled={isSending}>
+                {isSending ? "Sending..." : "Send OTP"}
               </button>
-            </>
+            </div>
+          )}
+
+          {otpSent && (
+            <div style={{ marginTop: "20px" }}>
+              {countdown > 0 ? (
+                <div style={{ marginBottom: "10px" }}>
+                  Resend OTP in {countdown}s
+                </div>
+              ) : (
+                <button
+                  onClick={handleSendOtp}
+                  disabled={isSending}
+                  style={{ marginBottom: "10px" }}
+                >
+                  {isSending ? "Sending..." : "Resend OTP"}
+                </button>
+              )}
+
+              <div style={{ marginBottom: "10px" }}>
+                <input
+                  type="text"
+                  placeholder="Enter OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  style={{ padding: "10px", width: "60%" }}
+                />
+              </div>
+
+              <div>
+                <button onClick={handleVerifyOtp}>Verify OTP</button>
+              </div>
+            </div>
           )}
         </div>
       )}

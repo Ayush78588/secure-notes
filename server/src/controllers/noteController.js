@@ -15,7 +15,6 @@ async function listNotes(req, res) {
 async function createNote(req, res) {
   try {
     const { title, body } = req.body;
-    console.log(title, body);
     
     if (!title || !title.trim()) {
       return res.status(400).json({ message: "title is required" });
