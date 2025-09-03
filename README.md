@@ -59,9 +59,13 @@ SMTP_PORT=587
 SMTP_USER=your_email@gmail.com  
 SMTP_PASS=your_email_app_password  
 OTP_EMAIL_FROM=your_email@gmail.com  
+GOOGLE_CLIENT_ID=   
+GOOGLE_CLIENT_SECRET=  
+GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
 
 ### Frontend `.env` example
 VITE_API_URL=http://localhost:5000/api  
+VITE_GOOGLE_CLIENT_ID=    
 
 ---
 
